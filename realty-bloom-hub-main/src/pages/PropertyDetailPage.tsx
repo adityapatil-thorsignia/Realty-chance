@@ -8,6 +8,30 @@ import { Heart, Share, Phone, Mail, MapPin, Bed, Bath, Home, Calendar, Award, Ar
 import { propertyApi } from "@/services/api";
 import { toast } from "sonner";
 
+function mapPropertyFromApi(apiProp: any) {
+  // Ensure images is always an array of objects with an 'image' property
+  let images = [];
+  if (Array.isArray(apiProp.images)) {
+    images = apiProp.images.map((img: any) =>
+      typeof img === 'string' ? { image: img } : img
+    );
+  }
+  return {
+    title: apiProp.title,
+    address: apiProp.address,
+    price: apiProp.price,
+    propertyType: apiProp.property_type,
+    images,
+    beds: apiProp.bedrooms,
+    baths: apiProp.bathrooms,
+    sqft: apiProp.area_sqft,
+    yearBuilt: apiProp.year_built,
+    description: apiProp.description,
+    features: apiProp.features || [],
+    agent: apiProp.agent || { image: '', name: '', phone: '', email: '' },
+  };
+}
+
 const PropertyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [property, setProperty] = useState<any>(null);
@@ -15,12 +39,15 @@ const PropertyDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Scroll to top when id changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     const fetchProperty = async () => {
       try {
         setLoading(true);
         setError(null);
         const response = await propertyApi.getById(id);
-        setProperty(response.data);
+        setProperty(mapPropertyFromApi(response.data));
       } catch (err: any) {
         console.error("Error fetching property:", err);
         setError(err.response?.data?.detail || "Failed to load property details");
@@ -74,7 +101,7 @@ const PropertyDetailPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="container py-8">
+      <div className="container py-8 max-w-6xl mx-auto">
         {/* Navigation */}
         <div className="mb-6">
           <Link to="/properties" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
@@ -84,7 +111,7 @@ const PropertyDetailPage: React.FC = () => {
         </div>
 
         {/* Property Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8 border-b pb-6">
           <div>
             <h1 className="text-3xl font-bold mb-2">{property.title}</h1>
             <div className="flex items-center text-muted-foreground">
@@ -108,11 +135,19 @@ const PropertyDetailPage: React.FC = () => {
         </div>
 
         {/* Image Gallery */}
-        <PropertyImageGallery images={property.images} />
+        {/* Image Gallery with fallback */}
+        {property.images && property.images.length > 0 ? (
+          <PropertyImageGallery images={property.images} />
+        ) : (
+          <div className="aspect-[4/3] w-full bg-gray-100 flex items-center justify-center text-gray-400 rounded-lg mb-6">
+            <span>No Image Available</span>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
           {/* Left Column (Property Details) */}
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-xl font-semibold mb-4">Property Details</h2>
               
@@ -145,17 +180,19 @@ const PropertyDetailPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-semibold mb-4">Features & Amenities</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-2">
-                {property.features.map((feature: string, index: number) => (
-                  <div key={index} className="flex items-center">
-                    <Award className="h-4 w-4 text-primary mr-2" />
-                    <span>{feature}</span>
-                  </div>
-                ))}
+            {property.features && property.features.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 className="text-xl font-semibold mb-4">Features & Amenities</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-2">
+                  {property.features.map((feature: string, index: number) => (
+                    <div key={index} className="flex items-center">
+                      <Award className="h-4 w-4 text-primary mr-2" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-xl font-semibold mb-4">Location</h2>
@@ -173,19 +210,15 @@ const PropertyDetailPage: React.FC = () => {
           </div>
 
           {/* Right Column (Contact Agent & Actions) */}
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4">Contact Agent</h2>
-              <div className="flex items-center mb-4">
+              {/* <div className="flex items-center mb-4 gap-4">
                 <img 
-                  src={property.agent.image} 
-                  alt={property.agent.name} 
-                  className="w-16 h-16 rounded-full object-cover mr-4"
+                  src={property.agent?.image || '/placeholder.jpg'} 
+                  alt={property.agent?.name || 'Agent'} 
+                  className="w-16 h-16 rounded-full object-cover border"
                 />
-                <div>
-                  <h3 className="font-medium">{property.agent.name}</h3>
-                  <p className="text-sm text-muted-foreground">Listing Agent</p>
-                </div>
               </div>
 
               <div className="space-y-3 mb-4">
@@ -199,7 +232,7 @@ const PropertyDetailPage: React.FC = () => {
                     {property.agent.email}
                   </a>
                 </div>
-              </div>
+              </div> */}
 
               <form className="space-y-4">
                 <div>

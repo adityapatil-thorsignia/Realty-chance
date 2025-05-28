@@ -111,9 +111,9 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
+    ),
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
@@ -134,11 +134,9 @@ REST_FRAMEWORK = {
 
 # JWT settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 AUTHENTICATION_BACKENDS = [
@@ -159,15 +157,12 @@ DJOSER = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # For development only, restrict in production
-
-# For production, specify allowed origins:
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",  # Vite default port
-    "http://127.0.0.1:5173",
+    "http://localhost:8080",  # Vite dev server
+    "http://127.0.0.1:8080",
 ]
+
+CORS_ALLOW_CREDENTIALS = True
 
 # Add property is_active field to Property model
 PROPERTY_ACTIVE_FIELD = True

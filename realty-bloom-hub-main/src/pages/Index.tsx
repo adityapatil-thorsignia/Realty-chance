@@ -1,14 +1,33 @@
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import SearchHero from "@/components/home/SearchHero";
 import FeaturedCategories from "@/components/home/FeaturedCategories";
 import PropertyGrid from "@/components/properties/PropertyGrid";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { featuredProperties } from "@/data/mockData";
+import { propertyApi } from "@/services/api";
+import PropertyCard from "@/components/properties/PropertyCard";
 
 const Index: React.FC = () => {
+  const [featuredProperties, setFeaturedProperties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/api/properties/')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setFeaturedProperties(data);
+        } else if (Array.isArray(data.results)) {
+          setFeaturedProperties(data.results);
+        } else {
+          setFeaturedProperties([]);
+        }
+      })
+      .catch(() => setFeaturedProperties([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <Layout>
       <SearchHero />
@@ -16,7 +35,7 @@ const Index: React.FC = () => {
       <FeaturedCategories />
       
       <PropertyGrid 
-        properties={featuredProperties}
+        properties={featuredProperties.slice(0, 3)}
         title="Featured Properties"
         subtitle="Explore our handpicked selection of featured properties"
       />
@@ -38,6 +57,8 @@ const Index: React.FC = () => {
           </div>
         </div>
       </div>
+
+   
 
       <section className="py-16 bg-primary text-primary-foreground">
         <div className="container">

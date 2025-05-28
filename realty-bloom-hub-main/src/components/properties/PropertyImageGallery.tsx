@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, Expand } from "lucide-react";
 
 interface PropertyImageGalleryProps {
-  images: string[];
+  images: Array<{ image: string } | string>;
 }
 
 const PropertyImageGallery: React.FC<PropertyImageGalleryProps> = ({ images }) => {
@@ -22,15 +22,19 @@ const PropertyImageGallery: React.FC<PropertyImageGalleryProps> = ({ images }) =
     setActiveIndex(index);
   };
 
+  // Helper to always get the image URL
+  const getImageUrl = (img: { image: string } | string) =>
+    typeof img === 'string' ? img : img.image;
+
   return (
     <>
       <div className="relative overflow-hidden rounded-lg">
         {/* Main image */}
         <div className="relative aspect-[16/9] overflow-hidden rounded-lg">
           <img
-            src={images[activeIndex]}
+            src={getImageUrl(images[activeIndex])}
             alt={`Property image ${activeIndex + 1}`}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover object-top"
           />
           <button
             onClick={() => setShowModal(true)}
@@ -65,7 +69,7 @@ const PropertyImageGallery: React.FC<PropertyImageGalleryProps> = ({ images }) =
 
         {/* Thumbnails */}
         <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-          {images.map((image, index) => (
+          {images.map((img, index) => (
             <button
               key={index}
               onClick={() => handleThumbnailClick(index)}
@@ -74,9 +78,9 @@ const PropertyImageGallery: React.FC<PropertyImageGalleryProps> = ({ images }) =
               }`}
             >
               <img
-                src={image}
+                src={getImageUrl(img)}
                 alt={`Property thumbnail ${index + 1}`}
-                className="h-16 w-24 object-cover rounded-md"
+                className="h-16 w-24 object-cover object-top rounded-md"
               />
             </button>
           ))}
@@ -97,9 +101,9 @@ const PropertyImageGallery: React.FC<PropertyImageGalleryProps> = ({ images }) =
             
             <div className="relative">
               <img
-                src={images[activeIndex]}
+                src={getImageUrl(images[activeIndex])}
                 alt={`Property image ${activeIndex + 1}`}
-                className="w-full max-h-[80vh] object-contain"
+                className="w-full max-h-[80vh] object-contain object-top"
               />
               
               <button
@@ -124,7 +128,7 @@ const PropertyImageGallery: React.FC<PropertyImageGalleryProps> = ({ images }) =
             </div>
 
             <div className="mt-4 flex gap-2 overflow-x-auto pb-2 justify-center">
-              {images.map((image, index) => (
+              {images.map((img, index) => (
                 <button
                   key={index}
                   onClick={() => handleThumbnailClick(index)}
@@ -133,9 +137,9 @@ const PropertyImageGallery: React.FC<PropertyImageGalleryProps> = ({ images }) =
                   }`}
                 >
                   <img
-                    src={image}
+                    src={getImageUrl(img)}
                     alt={`Property thumbnail ${index + 1}`}
-                    className="h-16 w-24 object-cover rounded-md"
+                    className="h-16 w-24 object-cover object-top rounded-md"
                   />
                 </button>
               ))}

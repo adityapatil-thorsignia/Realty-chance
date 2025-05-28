@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import PropertyCard from "./PropertyCard";
 import { Property } from "@/types/property";
@@ -104,7 +103,7 @@ const PropertyGrid: React.FC<PropertyGridProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProperties.length > 0 ? (
           filteredProperties.map((property) => (
-            <PropertyCard key={property.id} {...property} />
+            <PropertyCard key={property.id} {...property} image={property.images?.[0]?.image || ''} />
           ))
         ) : (
           <div className="col-span-3 text-center py-12">

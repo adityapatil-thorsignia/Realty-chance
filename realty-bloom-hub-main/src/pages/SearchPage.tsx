@@ -11,20 +11,18 @@ import { Property } from "@/types/property";
 
 const SearchPage: React.FC = () => {
   const location = useLocation();
-  const [searchParams] = useState(new URLSearchParams(location.search));
   const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
   // Get query params from URL
+  const searchParams = new URLSearchParams(location.search);
   const searchTerm = searchParams.get("q") || "";
-  const searchType = searchParams.get("type") || "buy";
+  const searchType = searchParams.get("type") || "sale";
   const searchCity = searchParams.get("city") || "";
   const searchState = searchParams.get("state") || "";
-  const searchLocality = searchParams.get("locality") || "";
   const searchAmenity = searchParams.get("amenity") || "";
   const lat = searchParams.get("lat") || null;
   const lng = searchParams.get("lng") || null;
@@ -33,35 +31,28 @@ const SearchPage: React.FC = () => {
     const fetchProperties = async () => {
       setLoading(true);
       try {
-        // Convert frontend property type to backend property type
-        const propertyType = searchType === "buy" ? "sale" : searchType;
-        
         // Build filter parameters
         const filters: any = {};
-        
-        if (propertyType) filters.property_type = propertyType;
+        if (searchType) filters.property_type = searchType;
         if (searchCity) filters.city = searchCity;
         if (searchState) filters.state = searchState;
-        if (searchLocality) filters.locality = searchLocality;
         if (searchTerm) filters.location_keyword = searchTerm;
         if (lat && lng) {
           filters.lat = lat;
           filters.lng = lng;
         }
-        
         // Fetch properties from API
         const response = await propertyApi.get('/properties', { params: filters });
         setProperties(response.data);
-        setFilteredProperties(response.data);
       } catch (error) {
         console.error('Error fetching properties:', error);
+        setProperties([]);
       } finally {
         setLoading(false);
       }
     };
-    
     fetchProperties();
-  }, [searchTerm, searchType, searchCity, searchState, searchLocality, searchAmenity, lat, lng]);
+  }, [searchTerm, searchType, searchCity, searchState, searchAmenity, lat, lng]);
 
   const handleFilterApply = async (filters: any) => {
     setLoading(true);
@@ -180,12 +171,6 @@ const SearchPage: React.FC = () => {
         );
       }
       
-      // Filter by locality
-      if (searchLocality) {
-        results = results.filter(property =>
-          property.address.toLowerCase().includes(searchLocality.toLowerCase())
-        );
-      }
       
       // Filter by type (buy/rent/lease)
       if (searchType === "buy") {
@@ -211,7 +196,7 @@ const SearchPage: React.FC = () => {
       setFilteredProperties(results);
       setLoading(false);
     }, 500);
-  }, [searchTerm, searchType, searchCity, searchState, searchLocality, searchAmenity]);
+  }, [searchTerm, searchType, searchCity, searchState, searchAmenity]);
 
   const handleApplyFilters = (filters: any) => {
     setLoading(true);
@@ -325,7 +310,7 @@ const SearchPage: React.FC = () => {
           {searchType === "buy" ? "Properties for sale" : searchType === "rent" ? "Properties for rent" : "Properties for lease"}
           {searchCity ? ` in ${searchCity}` : ""}
           {searchState && !searchCity ? ` in ${searchState}` : ""}
-          {searchLocality ? `, ${searchLocality}` : ""}
+
         </p>
         
         {/* Location based search */}
@@ -372,12 +357,11 @@ const SearchPage: React.FC = () => {
           <>
             <div className="mb-6 animate-fade-in">
               <p className="text-muted-foreground">
-                {filteredProperties.length} properties found
+                {properties.length} properties found
               </p>
             </div>
-            
-            {filteredProperties.length > 0 ? (
-              <PropertyGrid properties={filteredProperties} />
+            {properties.length > 0 ? (
+              <PropertyGrid properties={properties} />
             ) : (
               <div className="text-center py-12">
                 <h3 className="text-xl font-medium mb-2">No properties found</h3>

@@ -31,6 +31,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   isVerified = false,
   isNewProject = false,
 }) => {
+  // Debug log for image prop
+  console.log("PropertyCard image prop:", image);
   const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
   const isFav = isFavorite(id);
 
@@ -49,11 +51,20 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     <div className="property-card group stagger-item">
       <div className="relative">
         <Link to={`/properties/${id}`}>
-          <img
-            src={image}
-            alt={title}
-            className="aspect-[4/3] w-full object-cover transition-all duration-300 group-hover:brightness-90"
-          />
+          {image && image.trim() !== "" ? (
+            <img
+              src={image}
+              alt={title}
+              className="aspect-[4/3] w-full object-cover transition-all duration-300 group-hover:brightness-90"
+              onError={e => {
+                (e.target as HTMLImageElement).src = process.env.PUBLIC_URL + "/placeholder.jpg";
+              }}
+            />
+          ) : (
+            <div className="aspect-[4/3] w-full bg-gray-100 flex items-center justify-center text-gray-400">
+              <span>No Image</span>
+            </div>
+          )}
         </Link>
         
         {/* Property Type Badge */}

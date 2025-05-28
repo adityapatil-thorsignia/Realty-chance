@@ -3,16 +3,19 @@ import axios from 'axios';
 // Create axios instance with default config
 const api = axios.create({
   baseURL: '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Add request interceptor to include auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token');
-    if (token) {
+    // Do not add Authorization header for login or register endpoints
+    if (
+      token &&
+      config.url &&
+      !config.url.includes('/auth/login') &&
+      !config.url.includes('/auth/register')
+    ) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;

@@ -86,7 +86,6 @@ class Property(models.Model):
     property_type = models.CharField(max_length=10, choices=PROPERTY_TYPE_CHOICES)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
-    locality = models.CharField(max_length=255)
     address = models.TextField()
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='properties')
     is_verified = models.BooleanField(default=False)

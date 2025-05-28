@@ -11,7 +11,7 @@ class PropertyFilter(filters.FilterSet):
     city = filters.CharFilter(field_name="city", lookup_expr="iexact")
     property_type = filters.CharFilter(field_name="property_type", lookup_expr="iexact")
     state = filters.CharFilter(field_name="state", lookup_expr="iexact")
-    locality = filters.CharFilter(field_name="locality", lookup_expr="icontains")
+
     location_keyword = filters.CharFilter(method="filter_location")
     is_verified = filters.BooleanFilter(field_name="is_verified")
     owner = filters.NumberFilter(field_name="owner__id")
@@ -23,8 +23,7 @@ class PropertyFilter(filters.FilterSet):
             return queryset
         return queryset.filter(
             models.Q(city__icontains=value) | 
-            models.Q(state__icontains=value) | 
-            models.Q(locality__icontains=value) |
+            models.Q(state__icontains=value) |
             models.Q(address__icontains=value)
         )
     
@@ -41,7 +40,7 @@ class PropertyFilter(filters.FilterSet):
         model = Property
         fields = [
             "city", "state", "price", "bedrooms", "bathrooms", 
-            "property_type", "locality", "is_verified", "owner",
+            "property_type", "is_verified", "owner",
             "min_area", "location_keyword", "trending"
         ]
 

@@ -10,12 +10,12 @@ const PostPropertyPage: React.FC = () => {
   return (
     <Layout>
       <div className="container py-8">
-        <BackButton to="/" label="Back to Home" />
+        {/* <BackButton to="/" label="Back to Home" /> */}
         
         <h1 className="text-3xl font-bold mb-2">Post a Property</h1>
         <p className="text-muted-foreground mb-4">Fill in the details below to list your property</p>
         
-        <div className="bg-muted/30 p-4 rounded-lg mb-8">
+        {/* <div className="bg-muted/30 p-4 rounded-lg mb-8">
           <div className="flex items-start">
             <div className="mr-4 mt-1 text-primary">
               <BadgeCheck className="h-6 w-6" />
@@ -50,7 +50,7 @@ const PostPropertyPage: React.FC = () => {
               </Alert>
             </div>
           </div>
-        </div>
+        </div> */}
         
         <PropertyForm />
       </div>

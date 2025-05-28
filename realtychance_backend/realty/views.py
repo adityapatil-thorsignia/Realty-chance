@@ -21,13 +21,23 @@ class PropertyViewSet(viewsets.ModelViewSet):
     queryset = Property.objects.filter(is_active=True)
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = PropertyFilter
-    search_fields = ['title', 'description', 'city', 'state', 'locality', 'address']
+    search_fields = ['title', 'description', 'city', 'state', 'address']
     ordering_fields = ['price', 'created_at', 'bedrooms', 'bathrooms', 'area_sqft']
-    
+
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return PropertyCreateUpdateSerializer
         return PropertySerializer
+
+    def create(self, request, *args, **kwargs):
+        print("Received data:", request.data)
+        print("Received files:", request.FILES)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        property = serializer.save(owner=request.user)
+        from rest_framework.response import Response
+        from rest_framework import status
+        return Response(PropertyCreateUpdateSerializer(property).data, status=status.HTTP_201_CREATED)
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'my_listings']:
@@ -155,11 +165,22 @@ class NewProjectViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'builder_name', 'description', 'city', 'state', 'location']
     ordering_fields = ['launch_date', 'possession_date', 'created_at']
     ordering = ['-created_at']
-    
+
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return NewProjectCreateUpdateSerializer
         return NewProjectSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        project = serializer.save(added_by=request.user)
+        images = request.FILES.getlist('images')
+        for image in images:
+            ProjectImage.objects.create(project=project, image=image)
+        from rest_framework.response import Response
+        from rest_framework import status
+        return Response(NewProjectCreateUpdateSerializer(project).data, status=status.HTTP_201_CREATED)
     
 
     def get_permissions(self):
@@ -379,12 +400,6 @@ def trending_locations(self, request):
         .annotate(count=Count('city'))\
         .order_by('-count')[:10]
         
-    # Get top localities
-    top_localities = Property.objects.filter(is_active=True, is_verified=True)\
-        .values('locality')\
-        .annotate(count=Count('locality'))\
-        .order_by('-count')[:10]
-        
     # Get top states
     top_states = Property.objects.filter(is_active=True, is_verified=True)\
         .values('state')\
@@ -393,9 +408,53 @@ def trending_locations(self, request):
         
     result = {
         'cities': top_cities,
-        'localities': top_localities,
         'states': top_states
     }
     
     return Response(result)
+
+import random
+import requests
+from .models_otp import EmailOTP
+
+@api_view(['POST'])
+def register_view(request):
+    serializer = UserCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        # Generate OTP
+        otp = f"{random.randint(100000, 999999)}"
+        # Store OTP
+        EmailOTP.objects.create(email=user.email, otp=otp)
+        # Send OTP via Node.js mailer
+        try:
+            requests.post('http://localhost:5001/send-otp', json={'email': user.email, 'otp': otp}, timeout=5)
+        except Exception as e:
+            print(f"Failed to send OTP email: {e}")
+        return Response({
+            'user_id': user.id,
+            'email': user.email,
+            'message': 'User registered. OTP sent to email.'
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def verify_email_otp(request):
+    email = request.data.get('email')
+    otp = request.data.get('otp')
+    if not email or not otp:
+        return Response({'error': 'Email and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        email_otp = EmailOTP.objects.filter(email=email, otp=otp).latest('created_at')
+        if email_otp.is_valid():
+            # Mark user as verified
+            from .models import User
+            user = User.objects.get(email=email)
+            user.is_phone_verified = True
+            user.save()
+            return Response({'message': 'Email verified successfully'})
+        else:
+            return Response({'error': 'OTP expired'}, status=status.HTTP_400_BAD_REQUEST)
+    except EmailOTP.DoesNotExist:
+        return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
 

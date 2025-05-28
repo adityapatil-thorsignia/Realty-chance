@@ -56,44 +56,50 @@ class PropertySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class PropertyCreateUpdateSerializer(serializers.ModelSerializer):
-    images = serializers.ListField(
-        child=serializers.ImageField(max_length=1000000, allow_empty_file=False, use_url=False),
-        write_only=True,
-        required=False
-    )
-    
+    # Do NOT declare an images field here! Handle images in create/update using request.FILES.getlist('images')
+
     class Meta:
         model = Property
-        fields = ['title', 'description', 'price', 'bedrooms', 'bathrooms', 'area_sqft', 
-                 'property_type', 'city', 'state', 'locality', 'address', 'images']
-    
+        fields = [
+            'title', 'description', 'price', 'bedrooms', 'bathrooms', 'area_sqft',
+            'property_type', 'city', 'state', 'address'
+        ]
+
     def create(self, validated_data):
-        images_data = validated_data.pop('images', [])
-        
+        request = self.context.get('request')
+        images = request.FILES.getlist('images') if request else []
+        print("DEBUG: Files in request:", request.FILES)
+        print("DEBUG: Images to save:", images)
         # Check if 'owner' is in validated_data and remove it to avoid duplicate
         if 'owner' in validated_data:
             validated_data.pop('owner')
-            
-        property = Property.objects.create(owner=self.context['request'].user, **validated_data)
-        
-        for image_data in images_data:
-            PropertyImage.objects.create(property=property, image=image_data)
-            
+        property = Property.objects.create(owner=request.user, **validated_data)
+        for image in images:
+            try:
+                print("DEBUG: Saving image:", image)
+                PropertyImage.objects.create(property=property, image=image)
+            except Exception as e:
+                print("ERROR saving PropertyImage:", e)
         return property
-    
+
     def update(self, instance, validated_data):
-        images_data = validated_data.pop('images', [])
-        
+        request = self.context.get('request')
+        images = request.FILES.getlist('images') if request else []
+        print("DEBUG (update): Files in request:", request.FILES)
+        print("DEBUG (update): Images to save:", images)
         # Update property fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        
         # Add new images if provided
-        for image_data in images_data:
-            PropertyImage.objects.create(property=instance, image=image_data)
-            
+        for image in images:
+            try:
+                print("DEBUG (update): Saving image:", image)
+                PropertyImage.objects.create(property=instance, image=image)
+            except Exception as e:
+                print("ERROR saving PropertyImage (update):", e)
         return instance
+
 
 class InquirySerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -132,20 +138,15 @@ class NewProjectSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class NewProjectCreateUpdateSerializer(serializers.ModelSerializer):
-    images = serializers.ListField(
-        child=serializers.ImageField(max_length=1000000, allow_empty_file=False, use_url=False),
-        write_only=True,
-        required=False
-    )
     
     class Meta:
         model = NewProject
-        fields = ['name', 'builder_name', 'description', 'city', 'state', 'location',
-                 'launch_date', 'possession_date', 'project_type', 'amenities', 'images']
+        fields = [
+            'name', 'builder_name', 'description', 'city', 'state', 'location',
+            'launch_date', 'possession_date', 'project_type', 'amenities'
+        ]
     
     def create(self, validated_data):
-        images_data = validated_data.pop('images', [])
-        
         # Check if 'added_by' is in validated_data and remove it to avoid duplicate
         if 'added_by' in validated_data:
             validated_data.pop('added_by')

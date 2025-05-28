@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,7 @@ interface AuthFormProps {
 
 const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
   const navigate = useNavigate();
-  const { login, register, verifyOtp, isLoading } = useAuth();
+  const { login, register, verifyOtp, loading } = useAuth();
   
   const [formData, setFormData] = useState({
     email: "",
@@ -58,38 +57,46 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
       // Validate the form
       if (!validateForm()) return;
       
-      // For registration with OTP flow
-      if (mode === "register" && !showOtp) {
-        const success = await register(formData.name, formData.email, formData.password, formData.phone);
+      // For registration (skip OTP step for now)
+      if (mode === "register") {
+        const success = await register(
+          formData.name,
+          formData.email,
+          formData.password,
+          formData.phone,
+          formData.confirmPassword
+        );
         if (success) {
-          setShowOtp(true);
-          toast.success("Registration successful! Please verify with OTP");
+          toast.success("Registration successful! You can now log in.");
+          navigate("/login");
         }
         return;
       }
       
       // For OTP verification
-      if (mode === "register" && showOtp) {
+      /* if (mode === "register" && showOtp) {
         if (!otp.trim() || otp.length !== 6) {
           toast.error("Please enter a valid 6-digit OTP");
           return;
         }
         
-        const success = await verifyOtp(otp);
+        const success = await verifyOtp(otp, formData.phone);
         if (success) {
           toast.success("Account verified successfully!");
           navigate("/");
         }
         return;
-      }
+      } */
       
       // For login
       if (mode === "login") {
-        // For login, we'll use either email or phone, whichever is provided
-        const success = await login(formData.email, formData.password, formData.phone);
-        if (success) {
+        // Use phone and password for login
+        const result = await login(formData.phone, formData.password);
+        if (result.success) {
           toast.success("Login successful!");
           navigate("/");
+        } else {
+          toast.error(result.error || "Incorrect phone number or password");
         }
       }
     } catch (error) {
@@ -136,8 +143,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
             </p>
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
               "Verifying..."
             ) : (
               <>
@@ -274,8 +281,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
               "Processing..."
             ) : (
               <>

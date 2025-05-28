@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X, User, Home, Search, Heart, Bell, LogIn, Plus, MapPin, Building, Star, BookmarkCheck, Compass } from "lucide-react";
@@ -13,9 +12,11 @@ import {
   navigationMenuTriggerStyle
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -151,12 +152,19 @@ const Header: React.FC = () => {
             <Bell className="h-5 w-5" />
             <span className="absolute top-0 right-0 h-2 w-2 bg-secondary rounded-full"></span>
           </Link>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/login">
+          {isAuthenticated ? (
+            <Button variant="ghost" size="sm" onClick={logout}>
               <LogIn className="mr-2 h-4 w-4" />
-              Login
-            </Link>
-          </Button>
+              Logout
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/login">
+                <LogIn className="mr-2 h-4 w-4" />
+                Login
+              </Link>
+            </Button>
+          )}
           <Button size="sm" asChild>
             <Link to="/post-property">
               <Plus className="mr-2 h-4 w-4" />
@@ -232,12 +240,19 @@ const Header: React.FC = () => {
               Post Property
             </Link>
             <div className="pt-4 border-t">
-              <Button className="w-full" size="sm" asChild>
-                <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+              {isAuthenticated ? (
+                <Button className="w-full" size="sm" onClick={() => { logout(); setIsMenuOpen(false); }}>
                   <User className="mr-2 h-4 w-4" />
-                  Login / Sign up
-                </Link>
-              </Button>
+                  Logout
+                </Button>
+              ) : (
+                <Button className="w-full" size="sm" asChild>
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                    <User className="mr-2 h-4 w-4" />
+                    Login / Sign up
+                  </Link>
+                </Button>
+              )}
             </div>
           </nav>
         </div>

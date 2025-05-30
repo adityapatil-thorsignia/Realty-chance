@@ -3,138 +3,56 @@ import { Link } from "react-router-dom";
 import { MapPin, Bed, Bath, Heart, ArrowRight, Home, BadgeCheck, IndianRupee } from "lucide-react";
 import { formatIndianRupees } from "@/utils/indianHelpers";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { Button } from '../ui/button';
+import { Property } from "@/types/property";
 
 interface PropertyCardProps {
-  id: string;
-  title: string;
-  price: number;
-  image: string;
-  location: string;
-  beds: number;
-  baths: number;
-  sqft: number;
-  propertyType: "sale" | "rent" | "lease";
-  isVerified?: boolean;
-  isNewProject?: boolean;
+  property: Property;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({
-  id,
-  title,
-  price,
-  image,
-  location,
-  beds,
-  baths,
-  sqft,
-  propertyType,
-  isVerified = false,
-  isNewProject = false,
-}) => {
+const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
   const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
-  const isFav = isFavorite(id);
+  const favorite = isFavorite(property.id);
 
-  const handleFavoriteToggle = (e: React.MouseEvent) => {
+  const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (isFav) {
-      removeFromFavorites(id);
+    if (favorite) {
+      removeFromFavorites(property.id);
     } else {
-      addToFavorites({ id, title, location, image });
+      addToFavorites(property);
     }
   };
 
   return (
-    <div className="property-card group stagger-item">
-      <div className="relative">
-        <Link to={`/properties/${id}`}>
+    <Link to={`/properties/${property.id}`} className="block">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+        <div className="relative">
           <img
-            src={image}
-            alt={title}
-            className="aspect-[4/3] w-full object-cover transition-all duration-300 group-hover:brightness-90"
+            src={property.image || property.images?.[0]}
+            alt={property.title}
+            className="w-full h-48 object-cover"
           />
-        </Link>
-        
-        {/* Property Type Badge */}
-        <span className={`property-badge ${
-          propertyType === "sale" ? "bg-secondary text-secondary-foreground" : 
-          propertyType === "rent" ? "bg-primary text-primary-foreground" :
-          "bg-amber-500 text-white"
-        }`}>
-          {propertyType === "sale" ? "For Sale" : 
-           propertyType === "rent" ? "For Rent" : "For Lease"}
-        </span>
-        
-        {/* Verified Badge */}
-        {isVerified && (
-          <div className="absolute top-3 left-3 z-10 bg-green-500 text-white rounded-full px-2 py-1 text-xs flex items-center">
-            <BadgeCheck className="h-3 w-3 mr-1" />
-            <span>Aadhar Verified</span>
-          </div>
-        )}
-        
-        {/* New Project Badge */}
-        {isNewProject && (
-          <div className="absolute top-12 left-3 z-10 bg-orange-500 text-white rounded-full px-2 py-1 text-xs">
-            New Project
-          </div>
-        )}
-        
-        {/* Favorite Button */}
-        <button 
-          className={`absolute top-3 right-3 z-10 rounded-full ${isFav ? 'bg-red-100' : 'bg-white/80'} p-1.5 ${isFav ? 'text-red-500' : 'text-muted-foreground'} backdrop-blur-sm transition-colors hover:text-red-500`}
-          onClick={handleFavoriteToggle}
-        >
-          <Heart className="h-5 w-5" fill={isFav ? "currentColor" : "none"} />
-          <span className="sr-only">{isFav ? 'Remove from favorites' : 'Add to favorites'}</span>
-        </button>
-      </div>
-
-      <div className="p-4">
-        <div className="flex justify-between mb-2">
-          <span className="text-lg font-semibold text-primary flex items-center">
-            <IndianRupee className="h-4 w-4 mr-1" />
-            {formatIndianRupees(price).replace('₹', '')}
-            {propertyType !== "sale" && <span className="text-sm text-muted-foreground"> /month</span>}
-          </span>
-        </div>
-        
-        <Link to={`/properties/${id}`} className="group-hover:text-primary transition-colors">
-          <h3 className="text-lg font-medium leading-tight mb-2 line-clamp-1">{title}</h3>
-        </Link>
-
-        <div className="flex items-center text-muted-foreground text-sm mb-3">
-          <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-          <span className="truncate">{location}</span>
-        </div>
-
-        <div className="flex items-center justify-between border-t pt-3 text-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center" title={`${beds} Bedrooms`}>
-              <Bed className="feature-icon" />
-              <span>{beds}</span>
-            </div>
-            <div className="flex items-center" title={`${baths} Bathrooms`}>
-              <Bath className="feature-icon" />
-              <span>{baths}</span>
-            </div>
-            <div className="flex items-center" title={`${sqft} Square Feet`}>
-              <Home className="feature-icon" />
-              <span>{sqft} ft²</span>
-            </div>
-          </div>
-          
-          <Link 
-            to={`/properties/${id}`} 
-            className="flex items-center text-primary hover:text-primary/80 transition-colors"
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`absolute top-2 right-2 ${
+              favorite ? 'text-red-500' : 'text-gray-400'
+            }`}
+            onClick={handleFavoriteClick}
           >
-            View
-            <ArrowRight className="ml-1 h-4 w-4" />
-          </Link>
+            <Heart className={`h-5 w-5 ${favorite ? 'fill-current' : ''}`} />
+          </Button>
+        </div>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold mb-2">{property.title}</h3>
+          <p className="text-gray-600 mb-2">{property.location}</p>
+          <p className="text-xl font-bold text-primary">
+            {formatIndianRupees(property.price)}
+          </p>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 

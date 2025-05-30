@@ -1,45 +1,47 @@
-import api from './api'; // Import the main api instance
+// src/services/propertyApi.ts
 
-// Basic API service for property-related endpoints
-import axios from 'axios';
+import api from './api'; // Axios instance with token interceptor
+import { AxiosResponse } from 'axios';
 
-
-const API_URL = 'http://localhost:8000/api'; // Replace with your actual backend URL
+// Wrapper for property-related API calls
 
 const propertyApi = {
-  getProperties: async (filters: any) => {
-    // In a real app, this would make an actual API call
-    console.log('Fetching properties with filters:', filters);
-    
-    // Mock response for development
-    return {
-      data: {
-        properties: [],
-        total: 0
-      }
-    };
-  },
-  
-  getPropertyById: async (id: string) => {
-    console.log('Fetching property with ID:', id);
-    
-    // Mock response
-    return {
-      data: {
-        id,
-        title: 'Property not found',
-        price: 0,
-        // Other property fields would go here
-      }
-    };
+  /**
+   * Fetch properties with optional filters
+   */
+  getProperties: async (filters: any = {}): Promise<AxiosResponse> => {
+    try {
+      const response = await api.get('/api/properties/', { params: filters });
+      return response;
+    } catch (error) { // @ts-ignore
+      console.error('Error fetching properties:', error.response?.data || error.message);
+      throw error;
+    }
   },
 
-  create: async (formData: FormData) => {
-    console.log('Creating property with formData:', formData);
+  /**
+   * Fetch a single property by ID
+   */
+  getPropertyById: async (id: string): Promise<AxiosResponse> => {
     try {
-      // Use the 'create' method from the main 'api.ts' propertyApi
-      // This assumes 'propertyApi.create' in 'api.ts' is correctly configured
-      const response = await api.post('/properties', formData);
+      const response = await api.get(`/api/properties/${id}/`);
+      return response;
+    } catch (error) { // @ts-ignore
+      console.error(`Error fetching property ${id}:`, error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Create a new property
+   */
+  create: async (formData: FormData): Promise<AxiosResponse> => {
+    try {
+      const response = await api.post('/api/properties/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return response;
     } catch (error) { // @ts-ignore
       console.error('Error creating property:', error.response?.data || error.message);

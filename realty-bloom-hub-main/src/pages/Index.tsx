@@ -1,26 +1,82 @@
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import SearchHero from "@/components/home/SearchHero";
 import FeaturedCategories from "@/components/home/FeaturedCategories";
 import PropertyGrid from "@/components/properties/PropertyGrid";
+import PropertySearch from "@/components/properties/PropertySearch";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { featuredProperties } from "@/data/mockData";
+import { Property } from "@/types/property";
+import { propertyApi } from "@/services/api";
+import { toast } from "sonner";
 
 const Index: React.FC = () => {
+  const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchFeaturedProperties = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await propertyApi.getAll();
+        if (Array.isArray(response.data.results)) {
+          // Filter featured properties from the fetched data
+          const featuredData = response.data.results.filter((property: Property) => 
+            property.isNewProject === true
+          );
+          setFeaturedProperties(featuredData);
+        } else {
+          setFeaturedProperties([]);
+        }
+      } catch (err) {
+        console.error("Error fetching featured properties:", err);
+        setError("Failed to load featured properties.");
+        toast.error("Failed to load featured properties.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedProperties();
+  }, [toast]);
+
   return (
     <Layout>
       <SearchHero />
       
       <FeaturedCategories />
       
-      <PropertyGrid 
-        properties={featuredProperties}
-        title="Featured Properties"
-        subtitle="Explore our handpicked selection of featured properties"
-      />
-      
+      <div className="container py-8">
+        <h1 className="text-3xl font-bold mb-2">Find Your Dream Home</h1>
+        <p className="text-muted-foreground mb-6">Discover the perfect property that matches your lifestyle</p>
+        
+        {/* Property Search */}
+        <div className="mb-8">
+          <PropertySearch />
+        </div>
+        
+        {/* Featured Properties */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-medium">Featured Properties</h2>
+            <Link to="/properties">
+              <Button variant="ghost">View All</Button>
+            </Link>
+          </div>
+          {loading ? (
+            <div className="text-center py-12">Loading featured properties...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-destructive">{error}</div>
+          ) : featuredProperties.length > 0 ? (
+            <PropertyGrid properties={featuredProperties} />
+          ) : (
+            <div className="text-center py-12">No featured properties found.</div>
+          )}
+        </div>
+      </div>
+
       <div className="container py-16 text-center">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-3xl font-bold mb-4">Find Your Dream Property</h2>

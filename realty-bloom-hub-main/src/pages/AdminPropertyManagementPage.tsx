@@ -6,16 +6,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { propertyApi } from "@/services/api";
 import { toast } from "sonner";
+import { Property } from "@/types/property";
 
 const AdminPropertyManagementPage: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [properties, setProperties] = useState<any[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Redirect if not admin
-    if (!isAuthenticated || user?.role !== 'admin') {
+    if (authLoading) return;
+    if (!isAuthenticated || user?.role !== 'admin' || !user?.token) {
       navigate('/');
       return;
     }
@@ -24,17 +25,18 @@ const AdminPropertyManagementPage: React.FC = () => {
       setLoading(true);
       try {
         const response = await propertyApi.getAll();
-        setProperties(response.data);
+        setProperties(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
         console.error('Error fetching properties:', error);
         toast.error('Failed to load properties');
+        setProperties([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProperties();
-  }, [isAuthenticated, user, navigate]);
+  }, [authLoading, isAuthenticated, user, navigate]);
 
   const handleVerifyProperty = async (id: string) => {
     try {
@@ -52,12 +54,10 @@ const AdminPropertyManagementPage: React.FC = () => {
   };
 
   const handleDeleteProperty = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this property?')) {
-      return;
-    }
-    
+    if (!window.confirm('Are you sure you want to delete this property?')) return;
+
     try {
-      await propertyApi.deleteProperty(id);
+      await propertyApi.delete(id);
       setProperties(prev => prev.filter(property => property.id !== id));
       toast.success('Property deleted successfully');
     } catch (error) {
@@ -66,19 +66,9 @@ const AdminPropertyManagementPage: React.FC = () => {
     }
   };
 
-  const handleRestoreProperty = async (id: string) => {
-    try {
-      await propertyApi.restoreProperty(id);
-      setProperties(prev => 
-        prev.map(property => 
-          property.id === id ? { ...property, isDeleted: false } : property
-        )
-      );
-      toast.success('Property restored successfully');
-    } catch (error) {
-      console.error('Error restoring property:', error);
-      toast.error('Failed to restore property');
-    }
+  // Helper function to filter properties
+  const getFilteredProperties = (filterFn: (p: Property) => boolean) => {
+    return Array.isArray(properties) ? properties.filter(filterFn) : [];
   };
 
   return (
@@ -91,7 +81,6 @@ const AdminPropertyManagementPage: React.FC = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="unverified">Unverified Properties</TabsTrigger>
             <TabsTrigger value="verified">Verified Properties</TabsTrigger>
-            <TabsTrigger value="deleted">Deleted Properties</TabsTrigger>
           </TabsList>
 
           <TabsContent value="unverified">
@@ -99,29 +88,24 @@ const AdminPropertyManagementPage: React.FC = () => {
               {loading ? (
                 <div className="text-center py-12">Loading properties...</div>
               ) : (
-                properties
-                  .filter(property => !property.isVerified && !property.isDeleted)
+                getFilteredProperties(property => !property.isVerified)
                   .map(property => (
                     <div key={property.id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-medium">{property.title}</h3>
-                          <p className="text-sm text-muted-foreground">{property.location}</p>
-                          <p className="text-sm">Owner: {property.owner.name}</p>
+                          <p className="text-sm text-muted-foreground">{property.address}</p>
+                          <p className="text-sm">Location: {property.city}, {property.state}</p>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleVerifyProperty(property.id)}>
-                            Verify
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteProperty(property.id)}>
-                            Delete
-                          </Button>
+                          <Button size="sm" onClick={() => handleVerifyProperty(property.id)}>Verify</Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDeleteProperty(property.id)}>Delete</Button>
                         </div>
                       </div>
                     </div>
                   ))
               )}
-              {!loading && properties.filter(p => !p.isVerified && !p.isDeleted).length === 0 && (
+              {!loading && getFilteredProperties(p => !p.isVerified).length === 0 && (
                 <div className="text-center py-12">No unverified properties found</div>
               )}
             </div>
@@ -132,53 +116,22 @@ const AdminPropertyManagementPage: React.FC = () => {
               {loading ? (
                 <div className="text-center py-12">Loading properties...</div>
               ) : (
-                properties
-                  .filter(property => property.isVerified && !property.isDeleted)
+                getFilteredProperties(property => property.isVerified)
                   .map(property => (
                     <div key={property.id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-medium">{property.title}</h3>
-                          <p className="text-sm text-muted-foreground">{property.location}</p>
-                          <p className="text-sm">Owner: {property.owner.name}</p>
+                          <p className="text-sm text-muted-foreground">{property.address}</p>
+                          <p className="text-sm">Location: {property.city}, {property.state}</p>
                         </div>
-                        <Button size="sm" variant="destructive" onClick={() => handleDeleteProperty(property.id)}>
-                          Delete
-                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDeleteProperty(property.id)}>Delete</Button>
                       </div>
                     </div>
                   ))
               )}
-              {!loading && properties.filter(p => p.isVerified && !p.isDeleted).length === 0 && (
+              {!loading && getFilteredProperties(p => p.isVerified).length === 0 && (
                 <div className="text-center py-12">No verified properties found</div>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="deleted">
-            <div className="space-y-4">
-              {loading ? (
-                <div className="text-center py-12">Loading properties...</div>
-              ) : (
-                properties
-                  .filter(property => property.isDeleted)
-                  .map(property => (
-                    <div key={property.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium">{property.title}</h3>
-                          <p className="text-sm text-muted-foreground">{property.location}</p>
-                          <p className="text-sm">Owner: {property.owner.name}</p>
-                        </div>
-                        <Button size="sm" onClick={() => handleRestoreProperty(property.id)}>
-                          Restore
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-              )}
-              {!loading && properties.filter(p => p.isDeleted).length === 0 && (
-                <div className="text-center py-12">No deleted properties found</div>
               )}
             </div>
           </TabsContent>

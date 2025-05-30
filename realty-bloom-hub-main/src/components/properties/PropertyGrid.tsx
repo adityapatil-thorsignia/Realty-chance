@@ -1,6 +1,5 @@
-
-import React, { useState } from "react";
-import PropertyCard from "./PropertyCard";
+import React, { useEffect, useState } from 'react';
+import PropertyCard from './PropertyCard';
 import { Property } from "@/types/property";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,7 +20,7 @@ const PropertyGrid: React.FC<PropertyGridProps> = ({
 }) => {
   const [filteredProperties, setFilteredProperties] = useState<Property[]>(properties);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-  
+
   // Function to handle amenity selection
   const handleAmenityChange = (amenity: string) => {
     const isSelected = selectedAmenities.includes(amenity);
@@ -61,9 +60,13 @@ const PropertyGrid: React.FC<PropertyGridProps> = ({
   };
   
   // Update filtered properties when properties prop changes
-  React.useEffect(() => {
+  useEffect(() => {
     setFilteredProperties(properties);
   }, [properties]);
+
+  if (properties.length === 0) {
+    return <div className="text-center py-8">No properties found</div>;
+  }
 
   return (
     <div className="container py-12">
@@ -104,7 +107,7 @@ const PropertyGrid: React.FC<PropertyGridProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProperties.length > 0 ? (
           filteredProperties.map((property) => (
-            <PropertyCard key={property.id} {...property} />
+            <PropertyCard key={property.id} property={property} />
           ))
         ) : (
           <div className="col-span-3 text-center py-12">

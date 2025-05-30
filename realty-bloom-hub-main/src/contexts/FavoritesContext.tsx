@@ -1,59 +1,84 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface FavoriteProperty {
-  id: string;
-  title: string;
-  location: string;
-  image: string;
-}
+import { useAuth } from './AuthContext';
+import { toast } from 'sonner';
+import { Property } from '@/types/property';
 
 interface FavoritesContextType {
-  favorites: FavoriteProperty[];
-  isFavorite: (id: string) => boolean;
-  addToFavorites: (property: FavoriteProperty) => void;
-  removeFromFavorites: (id: string) => void;
+  favorites: Property[];
+  addToFavorites: (property: Property) => void;
+  removeFromFavorites: (propertyId: string) => void;
+  isFavorite: (propertyId: string) => boolean;
+  loading: boolean;
 }
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
 
 export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [favorites, setFavorites] = useState<FavoriteProperty[]>([]);
+  const [favorites, setFavorites] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    // Load favorites from localStorage
-    const savedFavorites = localStorage.getItem('favorites');
-    if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
-    }
+    const loadFavorites = () => {
+      try {
+        const savedFavorites = localStorage.getItem('favorites');
+        if (savedFavorites) {
+          setFavorites(JSON.parse(savedFavorites));
+        }
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+        setFavorites([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFavorites();
   }, []);
 
-  // Save favorites to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-  }, [favorites]);
-
-  const isFavorite = (id: string) => {
-    return favorites.some(property => property.id === id);
-  };
-
-  const addToFavorites = (property: FavoriteProperty) => {
-    if (!isFavorite(property.id)) {
-      setFavorites([...favorites, property]);
+  const saveFavorites = (newFavorites: Property[]) => {
+    try {
+      localStorage.setItem('favorites', JSON.stringify(newFavorites));
+      setFavorites(newFavorites);
+    } catch (error) {
+      console.error('Error saving favorites:', error);
+      toast.error('Failed to save favorites');
     }
   };
 
-  const removeFromFavorites = (id: string) => {
-    setFavorites(favorites.filter(property => property.id !== id));
+  const addToFavorites = (property: Property) => {
+    if (!isAuthenticated) {
+      toast.error('Please login to add favorites');
+      return;
+    }
+
+    if (!favorites.some(fav => fav.id === property.id)) {
+      const newFavorites = [...favorites, property];
+      saveFavorites(newFavorites);
+      toast.success('Added to favorites');
+    }
+  };
+
+  const removeFromFavorites = (propertyId: string) => {
+    const newFavorites = favorites.filter(fav => fav.id !== propertyId);
+    saveFavorites(newFavorites);
+    toast.success('Removed from favorites');
+  };
+
+  const isFavorite = (propertyId: string) => {
+    return favorites.some(fav => fav.id === propertyId);
   };
 
   return (
-    <FavoritesContext.Provider value={{ 
-      favorites, 
-      isFavorite, 
-      addToFavorites, 
-      removeFromFavorites 
-    }}>
+    <FavoritesContext.Provider
+      value={{
+        favorites,
+        addToFavorites,
+        removeFromFavorites,
+        isFavorite,
+        loading
+      }}
+    >
       {children}
     </FavoritesContext.Provider>
   );

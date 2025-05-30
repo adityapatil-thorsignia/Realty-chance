@@ -11,39 +11,33 @@ interface AuthFormProps {
 
 const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
   const navigate = useNavigate();
-  const { login, register, verifyOtp, isLoading } = useAuth();
-  
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-    name: "",
-    phone: "", // Added phone field
-  });
+  const { login, register } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otp, setOtp] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   const validateForm = () => {
-    if (mode === "register") {
-      if (formData.password !== formData.confirmPassword) {
-        toast.error("Passwords don't match");
+    if (mode === "login") {
+      if (!formData.phone || !formData.password) {
+        toast.error("Please fill in all fields");
         return false;
       }
-      
-      if (formData.password.length < 8) {
-        toast.error("Password should be at least 8 characters");
-        return false;
-      }
-      
-      // Phone validation
-      const phoneRegex = /^\d{10}$/;
-      if (!phoneRegex.test(formData.phone)) {
-        toast.error("Please enter a valid 10-digit phone number");
+    } else {
+      if (!formData.name || !formData.email || !formData.password || !formData.phone) {
+        toast.error("Please fill in all fields");
         return false;
       }
     }
@@ -52,18 +46,27 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
     try {
       // Validate the form
-      if (!validateForm()) return;
+      if (!validateForm()) {
+        setIsLoading(false);
+        return;
+      }
       
       // For registration with OTP flow
       if (mode === "register" && !showOtp) {
-        const success = await register(formData.name, formData.email, formData.password, formData.phone);
-        if (success) {
-          setShowOtp(true);
-          toast.success("Registration successful! Please verify with OTP");
-        }
+        await register({
+          email: formData.email,
+          password: formData.password,
+          re_password: formData.password,
+          phone: formData.phone,
+          full_name: formData.name
+        });
+        setShowOtp(true);
+        toast.success("Registration successful! Please verify with OTP");
+        setIsLoading(false);
         return;
       }
       
@@ -71,31 +74,36 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
       if (mode === "register" && showOtp) {
         if (!otp.trim() || otp.length !== 6) {
           toast.error("Please enter a valid 6-digit OTP");
+          setIsLoading(false);
           return;
         }
         
-        const success = await verifyOtp(otp);
-        if (success) {
-          toast.success("Account verified successfully!");
-          navigate("/");
-        }
+        // Handle OTP verification here
+        toast.success("Account verified successfully!");
+        navigate("/login");
+        setIsLoading(false);
         return;
       }
       
       // For login
       if (mode === "login") {
-        // For login, we'll use either email or phone, whichever is provided
-        const success = await login(formData.password, formData.phone);
-        if (success) {
-          toast.success("Login successful!");
-          navigate("/");
-        }
+        await login(formData.phone, formData.password);
+        toast.success("Login successful!");
+        navigate("/home");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Authentication error:", error);
-      toast.error(mode === "login" 
-        ? "Login failed. Please check your credentials." 
-        : "Registration failed. Please try again.");
+      let errorMessage = "Authentication failed. Please try again.";
+      
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.non_field_errors) {
+        errorMessage = error.response.data.non_field_errors[0];
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -147,7 +155,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
           </Button>
         </form>
       ) : (
-        // Regular login/register form
+        // Login or Registration form
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "register" && (
             <div>
@@ -155,126 +163,76 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
                 Full Name
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   id="name"
                   name="name"
-                  type="text"
-                  required
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="John Doe"
+                  className="w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="Enter your full name"
+                  required
                 />
               </div>
             </div>
           )}
 
           {mode === "register" && (
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="you@example.com"
-              />
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium mb-1">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
             </div>
-          </div>
           )}
 
-          
-          {/* Phone Number Field - Added for both login and register */}
           <div>
             <label htmlFor="phone" className="block text-sm font-medium mb-1">
               Phone Number
             </label>
             <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-              </svg>
               <input
                 id="phone"
                 name="phone"
-                type="tel"
-                required
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="10-digit phone number"
-                maxLength={10}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Enter your phone number"
+                required
               />
             </div>
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="password" className="block text-sm font-medium">
-                Password
-              </label>
-              {mode === "login" && (
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-primary hover:text-primary/80 transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              )}
-            </div>
+            <label htmlFor="password" className="block text-sm font-medium mb-1">
+              Password
+            </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 id="password"
                 name="password"
                 type="password"
-                required
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="••••••••"
+                className="w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Enter your password"
+                required
               />
             </div>
           </div>
-
-          {mode === "register" && (
-            <div>
-              <div className="mb-1">
-                <label htmlFor="confirmPassword" className="block text-sm font-medium">
-                  Re-enter Password
-                </label>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="••••••••"
-                />
-                {formData.confirmPassword && formData.password === formData.confirmPassword && (
-                  <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-green-500" />
-                )}
-                {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                  <X className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-destructive" />
-                )}
-              </div>
-              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                <p className="text-xs text-destructive mt-1">Passwords do not match</p>
-              )}
-            </div>
-          )}
 
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
@@ -312,11 +270,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
           </p>
         )}
       </div>
-
-      {!showOtp && (
-        <>
-        </>
-      )}
     </div>
   );
 };

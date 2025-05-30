@@ -1,22 +1,50 @@
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import PropertyGrid from "@/components/properties/PropertyGrid";
 import PropertySearch from "@/components/properties/PropertySearch";
 import BackButton from "@/components/ui/back-button";
-import { properties } from "@/data/mockData";
 import { Property } from "@/types/property";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Building, MapPin, Search, Compass } from "lucide-react";
-import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { propertyApi } from "@/services/api";
+import { toast } from "sonner";
 
 const NewProjectsPage: React.FC = () => {
-  // Filter only new projects
-  const newProjects = properties
-    .filter(property => property.isNewProject === true)
-    .map(property => property as Property);
-    
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const [newProjects, setNewProjects] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  console.log('NewProjectsPage Auth State:', { user, isAuthenticated, authLoading });
+
+  useEffect(() => {
+    const fetchNewProjects = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await propertyApi.getAll();
+        if (Array.isArray(response.data.results)) {
+          // Filter only new projects from the fetched data
+          const projectsData = response.data.results.filter((property: Property) => property.isNewProject === true);
+          setNewProjects(projectsData);
+        } else {
+          setNewProjects([]);
+        }
+      } catch (err) {
+        console.error("Error fetching new projects:", err);
+        setError("Failed to load new projects.");
+        toast.error("Failed to load new projects.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNewProjects();
+  }, [toast]);
+
+  
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -161,9 +189,15 @@ const NewProjectsPage: React.FC = () => {
               </select>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground mb-6">Found {newProjects.length} new projects</p>
-          
-          <PropertyGrid properties={newProjects} />
+          {loading ? (
+            <div className="text-center py-12">Loading new projects...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-destructive">{error}</div>
+          ) : newProjects.length > 0 ? (
+            <PropertyGrid properties={newProjects} />
+          ) : (
+            <div className="text-center py-12">No new projects found.</div>
+          )}
         </div>
       </div>
     </Layout>

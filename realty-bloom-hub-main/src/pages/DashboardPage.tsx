@@ -9,102 +9,100 @@ import { Property } from "@/types/property";
 import { propertyApi, inquiryApi } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
 
+interface Inquiry {
+  id: string;
+  message: string;
+  status: 'pending' | 'approved' | 'rejected';
+  property: {
+    title: string;
+  };
+  user: {
+    name: string;
+  };
+}
+
 const DashboardPage: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
-  const [inquiries, setInquiries] = useState<any[]>([]);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Redirect if not authenticated
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
+  console.log('DashboardPage Auth State:', { user, isAuthenticated, authLoading });
 
-    const fetchData = async () => {
+  // Helper function to filter properties
+  const getFilteredProperties = (filterFn: (p: Property) => boolean) => {
+    return Array.isArray(properties) ? properties.filter(filterFn) : [];
+  };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user) return;
+      
       setLoading(true);
       try {
-        // Fetch data based on user role
-        if (user?.role === 'admin') {
-          // Admin sees all properties including unverified ones
-          const [propertiesRes, inquiriesRes] = await Promise.all([
-            propertyApi.getAll(),
-            inquiryApi.getAll()
-          ]);
-          setProperties(propertiesRes.data);
-          setInquiries(inquiriesRes.data);
-        } else if (user?.role === 'property_owner') {
-          // Property owners see their own properties
-          const [propertiesRes, inquiriesRes] = await Promise.all([
-            propertyApi.getByOwner(user.id),
-            inquiryApi.getByOwner(user.id)
-          ]);
-          setProperties(propertiesRes.data);
-          setInquiries(inquiriesRes.data);
+        // Only fetch properties for property owners and admins
+        if (user.role === 'property_owner' || user.role === 'admin') {
+          const propertiesResponse = await propertyApi.my_listings();
+          setProperties(Array.isArray(propertiesResponse.data) ? propertiesResponse.data : []);
         } else {
-          // Regular users see their inquiries
-          const inquiriesRes = await inquiryApi.getByUser(user?.id);
-          setInquiries(inquiriesRes.data);
+          setProperties([]);
         }
+        
+        // Fetch inquiries - the backend will automatically filter based on user role
+        const inquiriesResponse = await inquiryApi.getAll();
+        // Handle paginated response
+        const inquiriesData = inquiriesResponse.data?.results || [];
+        setInquiries(Array.isArray(inquiriesData) ? inquiriesData : []);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load dashboard data',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [isAuthenticated, user, navigate]);
+    fetchDashboardData();
+  }, [user, toast]);
 
   const handleInquiryAction = async (inquiryId: string, action: 'approve' | 'reject') => {
     try {
-      if (action === 'approve') {
-        await inquiryApi.approveInquiry(inquiryId);
-      } else {
-        await inquiryApi.rejectInquiry(inquiryId);
-      }
-      
-      // Update the inquiries list
-      setInquiries(prev => 
-        prev.map(inquiry => 
-          inquiry.id === inquiryId 
-            ? { ...inquiry, status: action === 'approve' ? 'approved' : 'rejected' } 
+      await (action === 'approve'
+        ? inquiryApi.approveInquiry(inquiryId)
+        : inquiryApi.rejectInquiry(inquiryId));
+
+      setInquiries(prev =>
+        prev.map(inquiry =>
+          inquiry.id === inquiryId
+            ? { ...inquiry, status: action === 'approve' ? 'approved' : 'rejected' }
             : inquiry
         )
       );
-      
-      toast({
-        title: `Inquiry ${action === 'approve' ? 'approved' : 'rejected'} successfully`
-      });
+
+      toast({ title: `Inquiry ${action}d successfully` });
     } catch (error) {
       console.error(`Error ${action}ing inquiry:`, error);
-      toast({
-        title: `Failed to ${action} inquiry`,
-        variant: "destructive"
-      });
+      toast({ title: `Failed to ${action} inquiry`, variant: "destructive" });
     }
   };
 
   const handleVerifyProperty = async (id: string) => {
     try {
       await propertyApi.verifyProperty(id);
-      setProperties(prev => 
-        prev.map(property => 
+      setProperties(prev =>
+        prev.map(property =>
           property.id === id ? { ...property, isVerified: true } : property
         )
       );
-      toast({
-        title: 'Property verified successfully'
-      });
+      toast({ title: "Property verified successfully" });
     } catch (error) {
-      console.error('Error verifying property:', error);
-      toast({
-        title: 'Failed to verify property',
-        variant: "destructive"
-      });
+      console.error("Error verifying property:", error);
+      toast({ title: "Failed to verify property", variant: "destructive" });
     }
   };
 
@@ -113,9 +111,9 @@ const DashboardPage: React.FC = () => {
       <div className="container py-8">
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
         <p className="text-muted-foreground mb-6">
-          {user?.role === 'admin' ? 'Manage properties and inquiries' :
-           user?.role === 'property_owner' ? 'Manage your property listings' :
-           'Track your property inquiries'}
+          {user?.role === 'admin' && 'Manage properties and inquiries'}
+          {user?.role === 'property_owner' && 'Manage your property listings'}
+          {user?.role !== 'admin' && user?.role !== 'property_owner' && 'Track your property inquiries'}
         </p>
 
         <Tabs defaultValue="properties" className="w-full">
@@ -146,42 +144,32 @@ const DashboardPage: React.FC = () => {
           )}
 
           <TabsContent value="inquiries">
-            <h2 className="text-xl font-medium mb-6">Property Inquiries</h2>
-            {loading ? (
-              <div className="text-center py-12">Loading inquiries...</div>
-            ) : inquiries.length > 0 ? (
-              <div className="space-y-4">
-                {inquiries.map((inquiry) => (
+            <div className="space-y-4">
+              {loading ? (
+                <div className="text-center py-12">Loading inquiries...</div>
+              ) : Array.isArray(inquiries) ? (
+                inquiries.map(inquiry => (
                   <div key={inquiry.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between">
-                      <h3 className="font-medium">{inquiry.property.title}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        inquiry.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        inquiry.status === 'approved' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-2">{inquiry.message}</p>
-                    <div className="mt-4 flex justify-end gap-2">
-                      {user?.role === 'admin' && inquiry.status === 'pending' && (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => handleInquiryAction(inquiry.id, 'approve')}>
-                            Approve
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleInquiryAction(inquiry.id, 'reject')}>
-                            Reject
-                          </Button>
-                        </>
-                      )}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">{inquiry.property.title}</h3>
+                        <p className="text-sm text-muted-foreground">{inquiry.message}</p>
+                        <p className="text-sm">From: {inquiry.user.name}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleInquiryAction(inquiry.id, 'approve')}>Approve</Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleInquiryAction(inquiry.id, 'reject')}>Reject</Button>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">No inquiries found</div>
-            )}
+                ))
+              ) : (
+                <div className="text-center py-12">No inquiries found</div>
+              )}
+              {!loading && Array.isArray(inquiries) && inquiries.length === 0 && (
+                <div className="text-center py-12">No inquiries found</div>
+              )}
+            </div>
           </TabsContent>
 
           {user?.role === 'admin' && (
@@ -191,8 +179,7 @@ const DashboardPage: React.FC = () => {
                 <div className="text-center py-12">Loading verification queue...</div>
               ) : (
                 <div className="space-y-4">
-                  {properties
-                    .filter(property => !property.isVerified)
+                  {getFilteredProperties(property => !property.isVerified)
                     .map(property => (
                       <div key={property.id} className="border rounded-lg p-4">
                         <div className="flex justify-between">
@@ -203,8 +190,7 @@ const DashboardPage: React.FC = () => {
                         </div>
                         <p className="text-sm text-muted-foreground mt-2">{property.location}</p>
                       </div>
-                    ))
-                  }
+                    ))}
                 </div>
               )}
             </TabsContent>

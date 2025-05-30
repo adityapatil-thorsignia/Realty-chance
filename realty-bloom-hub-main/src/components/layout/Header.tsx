@@ -29,7 +29,7 @@ const Header: React.FC = () => {
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/home" className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary animate-fade-in" />
             <span className="hidden font-bold text-xl md:inline-block animate-fade-in">RealtyChance</span>
           </Link>
@@ -167,7 +167,7 @@ const Header: React.FC = () => {
                   <NavigationMenuItem>
                     <NavigationMenuTrigger>
                       <User className="mr-2 h-4 w-4" />
-                      {user?.name || 'Account'}
+                      {user?.full_name || 'Account'}
                     </NavigationMenuTrigger>
                     <NavigationMenuContent>
                       <ul className="grid w-[200px] gap-3 p-4">

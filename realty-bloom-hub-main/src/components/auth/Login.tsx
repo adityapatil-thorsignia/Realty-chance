@@ -1,10 +1,23 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { authApi } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '../ui/form';
 import { useToast } from '../../hooks/use-toast';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -12,17 +25,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Login = () => {
-  const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  // Login form schema
   const loginSchema = z.object({
     phone: z.string().min(10, 'Phone number must be at least 10 digits'),
     password: z.string().min(1, 'Password is required'),
   });
 
-  // Form for login
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -31,20 +42,43 @@ const Login = () => {
     },
   });
 
-  // Handle login submission
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     try {
+      console.log('Attempting login with:', { phone: values.phone });
+      
       await login(values.phone, values.password);
-      toast({
-        title: 'Login successful',
-        description: 'Welcome back!',
+      
+      toast({ 
+        title: "Login successful", 
+        description: "Welcome back!" 
       });
-      navigate('/dashboard');
+
+      // Navigate to home page
+      navigate('/home');
     } catch (error: any) {
+      console.error("Login failed:", error);
+      console.error("Error details:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data
+        }
+      });
+      
+      let errorMessage = 'Invalid credentials';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.non_field_errors) {
+        errorMessage = error.response.data.non_field_errors[0];
+      }
+      
       toast({
-        title: 'Login failed',
-        description: error.response?.data?.detail || 'Invalid credentials',
-        variant: 'destructive',
+        title: "Login failed",
+        description: errorMessage,
+        variant: "destructive",
       });
     }
   };
@@ -53,9 +87,7 @@ const Login = () => {
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>Login</CardTitle>
-        <CardDescription>
-          Enter your phone number and password to login
-        </CardDescription>
+        <CardDescription>Enter your phone number and password</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>

@@ -14,7 +14,7 @@ const PropertyInquiryForm: React.FC<PropertyInquiryFormProps> = ({ propertyId, p
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: user?.name || "",
+    name: user?.full_name || "",
     email: user?.email || "",
     phone: user?.phone || "",
     message: `I'm interested in this property: ${propertyTitle}`
